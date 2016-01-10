@@ -10,8 +10,7 @@ defmodule WamekuServerScratch.CheckHandler do
     Logger.info(inspect(notifiers))
     Logger.info("got return code 1")
     config = load_config
-    result = Enum.each(notifiers, fn(n) -> Logger.info(inspect(exec_notifier(n))) end)
-    # if result not ok then send out to backup alert notification
+    result = exec_notifier(notifiers, [])
     Logger.info("sent alert for #{inspect(result)}")
     {:ok, "sent an alert since we go a 1"}
   end
@@ -19,9 +18,7 @@ defmodule WamekuServerScratch.CheckHandler do
     Logger.info("checked returned code 1")
     config = load_config
     # TODO break out into notifier handler
-    notifier = Map.get(result, "notifier")
-    result = exec_notifier(notifier)
-    # if result not ok then send out to backup alert notification
+    result = exec_notifier(result["notifier"], [])
     Logger.info("sent alert for #{inspect(result)}")
     {:ok, "sent an alert since we go a 1"}
   end
@@ -37,8 +34,7 @@ defmodule WamekuServerScratch.CheckHandler do
     config   = load_config
     # TODO break out into notifier handler
     # TODO stop reading config file everytime
-    notifier = Map.get(result, "notifier")
-    result   = exec_notifier(notifier)
+    result   = exec_notifier(notifier, [])
 
     {:ok, "sent an alert for exit code 2"}
   end
@@ -56,32 +52,22 @@ defmodule WamekuServerScratch.CheckHandler do
     Poison.decode!(File.read!("/tmp/checks/config/notify/notifiers.json"))
   end
 
-  # TODO add accumulator for results of notifier sent
-  def exec_notifier(l=[]) when is_list(l) do
-    {:ok, "alert sent"} 
+  def exec_notifier([], acc) when length(acc) == 0 do
+    {:ok, "no need to alert as no notifier was set!"} 
   end
-  def exec_notifier(l=[h|t]) when is_list(l) do
+  def exec_notifier([], acc) do
+    {:ok, "alert sent!", acc} 
+  end
+  def exec_notifier([h|t], acc) do
     config = load_config
     alert  = Map.get(config, to_string(h))
+    result =
     if alert do
-      Porcelain.exec(alert["path"], alert["arguments"])
+      [Porcelain.exec(alert["path"], alert["arguments"])| acc]
     else
       Logger.info("Could not find notifier #{h}, ignoring")
+      acc
     end
-    exec_notifier(t)
+    exec_notifier(t, result)
   end
-  def exec_notifier(notifier) when is_binary(notifier) do
-    config = load_config
-    alert  = Map.get(config, to_string(notifier))
-    if alert do
-      Porcelain.exec(alert["path"], alert["arguments"])
-    else
-      Logger.info("Could not find notifier #{inspect(notifier)}, ignoring")
-    end
-    {:ok, "alert sent"}
-  end
-  def exec_notifier(notifier) do
-    Logger.info("no notifier")
-  end
-
 end
