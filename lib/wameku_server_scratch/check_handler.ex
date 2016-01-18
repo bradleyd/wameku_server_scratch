@@ -1,6 +1,10 @@
 defmodule WamekuServerScratch.CheckHandler do
   require Logger
 
+  defmodule HandlerMessage do
+    defstruct output: :nil, exit_code: :nil, name: :nil
+  end
+
   def handle(result=%{"exit_code" => 0}) do
     Logger.info("nothing to do for 0 exit code")
     {:ok, "noop"}
@@ -64,7 +68,8 @@ defmodule WamekuServerScratch.CheckHandler do
     result =
     if alert do
       # send to stdin name, exit_code, and output
-      [Porcelain.exec(alert["path"], alert["arguments"])| acc]
+      encoded = Poison.encode!(%HandlerMessage{name: message["name"], output: message["output"], exit_code: message["exit_code"]})
+      [Porcelain.exec(alert["path"], [encoded])| acc]
     else
       Logger.info("Could not find notifier #{h}, ignoring")
       acc
