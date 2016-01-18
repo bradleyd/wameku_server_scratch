@@ -21,3 +21,14 @@ The format of file should be
 ```
 
 The code also expects a `RabbitMQ` server running locally with a `guest/guest` access.
+
+The handler should expect a json hash as an argument.
+For example, this is how wameku server will call the handler.
+
+```elixir
+Porcelain.exec("/opt/wameku/handlers/mailer.sh", [Poison.encode!(%{name: "foo-check-disk", output: "OK", exit_code: 1})])
+```
+
+## TODO
+
+* Need a way to override notifications for some period of time.
