@@ -31,6 +31,7 @@ defmodule WamekuServerScratch.Mixfile do
     [
       {:poison, "~> 1.5"},
       {:porcelain, "~> 2.0"},
+      {:amnesia, "~> 0.2.1"},
       {:amqp, "~> 0.1.4"}
     ]
   end

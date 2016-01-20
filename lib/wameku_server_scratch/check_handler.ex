@@ -12,6 +12,7 @@ defmodule WamekuServerScratch.CheckHandler do
 
   def handle(message=%{"exit_code" => 1, "notifier" => notifiers}) when is_list(notifiers) do
     Logger.info(inspect(message))
+    Logger.info(inspect(notifiers))
     Logger.info("got return code 1")
     config = load_config
     result = exec_notifier(notifiers, message, [])
@@ -63,10 +64,11 @@ defmodule WamekuServerScratch.CheckHandler do
     {:ok, "alert sent!", acc} 
   end
   def exec_notifier([h|t], message, acc) do
+    {client, client_data } = WamekuServerScratch.ClientStore.lookup(message["host"])
     config = load_config
     alert  = Map.get(config, to_string(h))
     result =
-    if alert do
+    if alert && client_data.active do
       # send to stdin name, exit_code, and output
       encoded = Poison.encode!(%HandlerMessage{name: message["name"], output: message["output"], exit_code: message["exit_code"]})
       [Porcelain.exec(alert["path"], [encoded])| acc]

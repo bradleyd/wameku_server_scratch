@@ -8,7 +8,9 @@ defmodule WamekuServerScratch do
 
     children = [
       # Define workers and child supervisors to be supervised
-      worker(WamekuServerScratch.CheckConsumer, [])
+      worker(WamekuServerScratch.ClientStore, [:client_store]),
+      worker(WamekuServerScratch.CheckConsumer, []),
+      worker(WamekuServerScratch.ServerMeshConsumer, [])
     ]
 
     # See http://elixir-lang.org/docs/stable/elixir/Supervisor.html
