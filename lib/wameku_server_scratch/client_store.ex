@@ -55,6 +55,14 @@ defmodule WamekuServerScratch.ClientStore do
         %Client{}
     end
   end
+  def find_or_create_by_name(name, payload) do
+    case lookup(name) do
+      { key, attributes} ->
+        {key, attributes}
+      :error ->
+       insert(name, payload) 
+    end
+  end
 
   def handle_call({:update, key, payload}, _from, state) do
     client = %{}

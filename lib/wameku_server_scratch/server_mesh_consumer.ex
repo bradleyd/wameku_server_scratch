@@ -50,6 +50,9 @@ defmodule WamekuServerScratch.ServerMeshConsumer do
       if decoded_payload["disable_client"] do
         WamekuServerScratch.ClientStore.insert(decoded_payload["disable_client"], %{active: false})
       end
+      if decoded_payload["enable_client"] do
+        WamekuServerScratch.ClientStore.insert(decoded_payload["enable_client"], %{active: true})
+      end
       Basic.ack channel, tag
     rescue
       exception ->

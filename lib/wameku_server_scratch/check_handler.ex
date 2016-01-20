@@ -73,7 +73,7 @@ defmodule WamekuServerScratch.CheckHandler do
       encoded = Poison.encode!(%HandlerMessage{name: message["name"], output: message["output"], exit_code: message["exit_code"]})
       [Porcelain.exec(alert["path"], [encoded])| acc]
     else
-      Logger.info("Could not find notifier #{h}, ignoring")
+      Logger.info("Could not find notifier #{h} or client is not active; ignoring")
       acc
     end
     exec_notifier(t, message, result)
