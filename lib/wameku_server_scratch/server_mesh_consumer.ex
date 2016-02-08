@@ -8,18 +8,19 @@ defmodule WamekuServerScratch.ServerMeshConsumer do
   end
 
   @exchange    "server_mesh_exchange"
-  @queue       ""
 
   def init(_opts) do
     {:ok, conn} = Connection.open("amqp://guest:guest@localhost")
     {:ok, chan} = Channel.open(conn)
+    {:ok, hostname } = :inet.gethostname
+    queue = "server_#{to_string(hostname)}"
     # Limit unacknowledged messages to 10
     Basic.qos(chan, prefetch_count: 10)
-    Queue.declare(chan, @queue, auto_delete: true, exclusive: true)
+    Queue.declare(chan, queue, auto_delete: false)
     Exchange.fanout(chan, @exchange)
-    Queue.bind(chan, @queue, @exchange)
+    Queue.bind(chan, queue, @exchange)
     # Register the GenServer process as a consumer
-    {:ok, _consumer_tag} = Basic.consume(chan, @queue)
+    {:ok, _consumer_tag} = Basic.consume(chan, queue)
     {:ok, chan}
   end
 
@@ -48,10 +49,20 @@ defmodule WamekuServerScratch.ServerMeshConsumer do
       decoded_payload = Poison.decode!(payload)
       Logger.info("popped #{inspect(decoded_payload)}")
       if decoded_payload["disable_client"] do
-        WamekuServerScratch.ClientStore.insert(decoded_payload["disable_client"], %{active: false})
+        case WamekuServerScratch.ClientStore.lookup(decoded_payload["client"]) do
+          {key, client} ->
+            WamekuServerScratch.ClientStore.insert(key, %{active: false})
+          _not_found ->
+            Logger.debug("Nothing to do..client not found")
+        end
       end
       if decoded_payload["enable_client"] do
-        WamekuServerScratch.ClientStore.insert(decoded_payload["enable_client"], %{active: true})
+        case WamekuServerScratch.ClientStore.lookup(decoded_payload["client"]) do
+          {key, client} ->
+            WamekuServerScratch.ClientStore.insert(key, %{active: true})
+          _not_found ->
+            Logger.debug("Nothing to do..client not found")
+        end
       end
       Basic.ack channel, tag
     rescue

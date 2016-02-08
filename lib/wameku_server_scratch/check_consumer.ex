@@ -7,8 +7,8 @@ defmodule WamekuServerScratch.CheckConsumer do
     GenServer.start_link(__MODULE__, [], [])
   end
 
-  @exchange    "test_exchange"
-  @queue       "test_queue"
+  @exchange    "clients_exchange"
+  @queue       "clients"
   @queue_error "#{@queue}_error"
 
   def init(_opts) do
@@ -51,7 +51,7 @@ defmodule WamekuServerScratch.CheckConsumer do
   defp consume(channel, tag, redelivered, payload) do
     #try do
       decoded_payload = Poison.decode!(payload)
-      Logger.info("popped #{inspect(decoded_payload)}")
+      Logger.info("popped check #{inspect(decoded_payload)}")
       incoming = %{host: decoded_payload["host"]}
       WamekuServerScratch.ClientStore.find_or_create_by_name(decoded_payload["host"], incoming)
       WamekuServerScratch.CheckHandler.handle(decoded_payload)
