@@ -29,3 +29,4 @@ use Mix.Config
 #
 #     import_config "#{Mix.env}.exs"
 config :porcelain, driver: Porcelain.Driver.Basic
+config :wameku_server_scratch, home_dir: "/opt/wameku"

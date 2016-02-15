@@ -1,11 +1,13 @@
 defmodule WamekuServerScratch.CheckHandler do
   require Logger
 
+  @wameku_home Application.get_env(:wameku_server_scratch, :home_dir)
+
   defmodule HandlerMessage do
     defstruct output: :nil, exit_code: :nil, name: :nil
   end
 
-  def handle(result=%{"exit_code" => 0}) do
+  def handle(%{"exit_code" => 0}) do
     Logger.info("nothing to do for 0 exit code")
     {:ok, "noop"}
   end
@@ -54,7 +56,8 @@ defmodule WamekuServerScratch.CheckHandler do
   end
 
   def load_config do
-    Poison.decode!(File.read!("/tmp/checks/config/notify/notifiers.json"))
+    config_path = Path.join([@wameku_home, "config", "notifiers.json"])
+    Poison.decode!(File.read!(config_path))
   end
 
   def exec_notifier([], _message, acc) when length(acc) == 0 do
@@ -67,15 +70,23 @@ defmodule WamekuServerScratch.CheckHandler do
     {client, client_data } = WamekuServerScratch.ClientStore.lookup(message["host"])
     config = load_config
     alert  = Map.get(config, to_string(h))
+    Logger.info("notifier config: #{inspect(alert)}")
     result =
     if alert && client_data.active do
       # send to stdin name, exit_code, and output
-      encoded = Poison.encode!(%HandlerMessage{name: message["name"], output: message["output"], exit_code: message["exit_code"]})
-      [Porcelain.exec(alert["path"], [encoded])| acc]
+      [Porcelain.exec(alert["path"], [build_config_arguments(alert), build_notifier_message(message)])| acc]
     else
       Logger.info("Could not find notifier #{h} or client is not active; ignoring")
       acc
     end
     exec_notifier(t, message, result)
+  end
+
+  def build_config_arguments(config) do
+    Poison.encode!(List.first(config["arguments"]))
+  end
+
+  def build_notifier_message(message) do
+      Poison.encode!(%HandlerMessage{name: message["name"], output: message["output"], exit_code: message["exit_code"]})
   end
 end
