@@ -14,7 +14,7 @@ defmodule WamekuServerScratch.Mixfile do
   #
   # Type "mix help compile.app" for more information
   def application do
-    [applications: [:logger, :porcelain],
+    [applications: [:logger, :amnesia, :porcelain],
       mod: {WamekuServerScratch, []}]
   end
 

@@ -1,4 +1,5 @@
 defmodule WamekuServerScratch.CheckHandler do
+  use Database
   require Logger
 
   @wameku_home Application.get_env(:wameku_server_scratch, :home_dir)
@@ -67,12 +68,12 @@ defmodule WamekuServerScratch.CheckHandler do
     {:ok, "alert sent!", acc} 
   end
   def exec_notifier([h|t], message, acc) do
-    {client, client_data } = WamekuServerScratch.ClientStore.lookup(message["host"])
+    client = Client.find(message["host"])
     config = load_config
     alert  = Map.get(config, to_string(h))
     Logger.info("notifier config: #{inspect(alert)}")
     result =
-    if alert && client_data.active do
+    if alert && client.active do
       # send to stdin name, exit_code, and output
       [Porcelain.exec(alert["path"], [build_config_arguments(alert), build_notifier_message(message)])| acc]
     else

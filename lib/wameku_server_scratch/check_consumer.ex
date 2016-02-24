@@ -1,5 +1,6 @@
 defmodule WamekuServerScratch.CheckConsumer do
   use GenServer
+  use Database
   use AMQP
   require Logger
 
@@ -53,7 +54,13 @@ defmodule WamekuServerScratch.CheckConsumer do
       decoded_payload = Poison.decode!(payload)
       Logger.info("popped check #{inspect(decoded_payload)}")
       incoming = %{host: decoded_payload["host"]}
-      WamekuServerScratch.ClientStore.find_or_create_by_name(decoded_payload["host"], incoming)
+      #WamekuServerScratch.ClientStore.find_or_create_by_name(decoded_payload["host"], incoming)
+      case Client.find(decoded_payload["host"]) do
+        nil -> 
+        Client.insert(%Client{name: decoded_payload["host"], active: true, notifier: decoded_payload["notifier"], last_checked: decoded_payload["last_checked"]})
+        client ->
+          Client.insert(%Client{client | notifier: decoded_payload["notifier"], last_checked: decoded_payload["last_checked"]})
+      end
       WamekuServerScratch.CheckHandler.handle(decoded_payload)
       Basic.ack channel, tag
       #rescue
