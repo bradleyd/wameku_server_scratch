@@ -16,7 +16,7 @@ The format of file should be
     "path": "/tmp/checks/foobar_notifier.sh",
     "arguments": []
   }
-  
+
 }
 ```
 
@@ -32,3 +32,7 @@ Porcelain.exec("/opt/wameku/handlers/mailer.sh", [Poison.encode!(%{name: "foo-ch
 ## TODO
 
 * Need a way to override notifications for some period of time.
+
+* Need a way to delete client
+
+* Nice to have metrics built in to server
