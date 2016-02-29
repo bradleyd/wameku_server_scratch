@@ -65,7 +65,8 @@ defmodule WamekuServerScratch.CheckConsumer do
         client ->
           Client.insert(%Client{client | notifier: decoded_payload["notifier"], last_checked: decoded_payload["last_checked"]})
       end
-      WamekuServerScratch.CheckHandler.handle(decoded_payload)
+      handle_info = WamekuServerScratch.CheckHandler.handle(decoded_payload)
+      Logger.debug("Check Handler: #{inspect(handle_info)}")
       Basic.ack state.channel, tag
       #rescue
         #exception ->
