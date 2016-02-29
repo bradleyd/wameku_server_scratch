@@ -60,7 +60,7 @@ defmodule WamekuServerScratch.ClientStore do
       { key, attributes} ->
         {key, attributes}
       :error ->
-       insert(name, payload) 
+       insert(name, payload)
     end
   end
 
@@ -86,7 +86,7 @@ defmodule WamekuServerScratch.ClientStore do
     results =
     case :dets.lookup(state.name, key) do
       [{^key, token}] -> {key, token}
-      [] -> %Client{}
+      [] -> :error
     end 
     {:reply, results, state}
   end
