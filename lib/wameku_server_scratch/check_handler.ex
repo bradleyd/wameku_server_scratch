@@ -56,15 +56,15 @@ defmodule WamekuServerScratch.CheckHandler do
   end
 
   def load_config do
-    config_path = Path.join([@wameku_home, "config", "notifiers.json"])
+    config_path = Path.join([@wameku_home, "server", "config", "notifiers.json"])
     Poison.decode!(File.read!(config_path))
   end
 
   def exec_notifier([], _message, acc) when length(acc) == 0 do
-    {:ok, "no need to alert as no notifier was set!"} 
+    {:ok, "no need to alert as no notifier was set!"}
   end
   def exec_notifier([], _message, acc) do
-    {:ok, "alert sent!", acc} 
+    {:ok, "alert sent!", acc}
   end
   def exec_notifier([h|t], message, acc) do
     {client, client_data } = WamekuServerScratch.ClientStore.lookup(message["host"])

@@ -2,6 +2,24 @@
 
 ## This is not usable code.
 
+```
+/tmp/wameku/
+├── client
+│   ├── checks
+│   │   ├── check_cpu.sh
+│   │   ├── check_disk.sh
+│   │   └── check_mem.sh
+│   └── config
+│       ├── check-cpu.json
+│       ├── check-disk.json
+│       └── check-mem.json
+└── server
+    ├── config
+        │   └── notifiers.json
+	    └── notifiers
+	            └── foobar_notifier.sh
+```
+
 This code expects a config file to exist under `/tmp/checks/config/notify/notifiers.json`
 
 The format of file should be
@@ -16,7 +34,7 @@ The format of file should be
     "path": "/tmp/checks/foobar_notifier.sh",
     "arguments": []
   }
-  
+
 }
 ```
 
