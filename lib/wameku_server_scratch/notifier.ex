@@ -1,8 +1,7 @@
 defmodule WamekuServerScratch.Notifier do
   require Logger
+  alias WamekuServerScratch.Config
   use Database
-
-  @wameku_home Application.get_env(:wameku_server_scratch, :home_directory)
 
   defmodule Metadata do
     defstruct output: :nil, exit_code: :nil, name: :nil
@@ -20,8 +19,7 @@ defmodule WamekuServerScratch.Notifier do
   end
   def do_run([h|t], message, acc) do
     client = Client.find(message["host"])
-    config = load_config
-    alert  = Map.get(config, to_string(h))
+    alert  = Config.lookup(h)
     do_run(t, message, send_notification(alert, client.active, message, acc))
   end
 
@@ -47,9 +45,5 @@ defmodule WamekuServerScratch.Notifier do
 
   def build_notifier_message(message) do
     Poison.encode!(%Metadata{name: message["name"], output: message["output"], exit_code: message["exit_code"]})
-  end
-  def load_config do
-    config_path = Path.join([@wameku_home, "config", "notifiers.json"])
-    Poison.decode!(File.read!(config_path))
   end
 end

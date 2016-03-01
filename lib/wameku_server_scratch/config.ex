@@ -32,7 +32,7 @@ defmodule WamekuServerScratch.Config do
   end
 
   def load_config do
-    config_path = Path.join([@wameku_home, "config", "notifiers.json"])
+    config_path = Path.join([@wameku_home, "server", "config", "notifiers.json"])
     Poison.decode!(File.read!(config_path))
   end
 
