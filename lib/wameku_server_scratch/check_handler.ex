@@ -1,51 +1,61 @@
 defmodule WamekuServerScratch.CheckHandler do
   require Logger
+  alias WamekuServerScratch.Notifier
+  alias WamekuServerScratch.TimeUtils
 
-  @wameku_home Application.get_env(:wameku_server_scratch, :home_dir)
-
-  defmodule HandlerMessage do
-    defstruct output: :nil, exit_code: :nil, name: :nil
+  # TODO check for action taken
+  def handle(%{"auto_pilot" => %{"start" => start_time, "end" => end_time, "timezone" => timezone}}=message) do
+    erl_date                    = TimeUtils.date_in_timezone(timezone)
+    {:ok, formatted_start_time} = Calendar.DateTime.from_erl({erl_date, Calendar.Time.to_erl(Calendar.Time.Parse.iso8601!(start_time))}, timezone)
+    {:ok, formatted_end_time}   = Calendar.DateTime.from_erl({erl_date, Calendar.Time.to_erl(Calendar.Time.Parse.iso8601!(end_time))}, timezone)
+    now_epoch                   = TimeUtils.now_in_tz_epoch(timezone)
+    Logger.debug("formatted st/et: #{inspect([formatted_start_time, formatted_end_time])}")
+    Logger.debug("now epoch #{inspect(erl_date)}")
+    st_epoch  = TimeUtils.datetime_to_epoch(formatted_start_time) #Calendar.DateTime.Format.unix(formatted_start_time)
+    et_epoch  = TimeUtils.datetime_to_epoch(formatted_start_time) #Calendar.DateTime.Format.unix(formatted_end_time)
+    Logger.debug(inspect([st_epoch, et_epoch]))
+    Logger.debug("now >= st_epoch: #{now_epoch}, #{st_epoch}")
+    Logger.debug("now <= et_epoch: #{now_epoch}, #{et_epoch}")
+    # update audit trail with action taken update_digest(message)
+    if (now_epoch >= st_epoch) && (now_epoch <= et_epoch) do
+      # dont alert
+      Logger.info("Autopilot is on and no need to alert")
+      {:ok, "noop"}
+    else
+      Logger.info("We are not in auto pilot range #{inspect([now: now_epoch, start: st_epoch, end: et_epoch])}")
+      # Remove AutoPilot from map and recurse
+      handle(Map.drop(message, ["auto_pilot"]))
+    end
   end
-
   def handle(%{"exit_code" => 0}) do
     Logger.info("nothing to do for 0 exit code")
     {:ok, "noop"}
   end
-
-  def handle(message=%{"exit_code" => 1, "notifier" => notifiers}) when is_list(notifiers) do
+  def handle(message=%{"exit_code" => 2, "notifier" => notifiers}) when is_list(notifiers) do
     Logger.info(inspect(message))
     Logger.info(inspect(notifiers))
+    Logger.info("got return code 2 - CRITICAL")
+    result = Notifier.run(notifiers, message)
+    Logger.info("sent alert for #{inspect(result)}")
+    {:ok, "sent an alert since we got a 2"}
+  end
+  def handle(message=%{"exit_code" => 2}) do
+    Logger.info("checked returned code 2 - CRITICAL")
+    result = Notifier.run(Map.get(message, "notifier", []), message)
+    Logger.info("sent alert for #{inspect(result)}")
+    {:ok, "sent an alert since we got a 2"}
+  end
+  def handle(result=%{"exit_code" => 1}) do
+    # if notify on exit code 1 then warn
     Logger.info("got return code 1")
-    config = load_config
-    result = exec_notifier(notifiers, message, [])
-    Logger.info("sent alert for #{inspect(result)}")
-    {:ok, "sent an alert since we go a 1"}
+    {:ok, "only warn for exit code 1"}
   end
-  def handle(message=%{"exit_code" => 1}) do
-    Logger.info("checked returned code 1")
-    config = load_config
-    # TODO break out into notifier handler
-    result = exec_notifier(Map.get(message, "notifier", []), message, [])
-    Logger.info("sent alert for #{inspect(result)}")
-    {:ok, "sent an alert since we go a 1"}
-  end
-
-  def handle(result=%{"exit_code" => 2}) do
+  def handle(message=%{"exit_code" => 1, "notifier" => notifiers, "notfiy_on_warning" => true}) do
     # if notify on exit code 2 then alert
-    Logger.info("got return code 2")
-    {:ok, "only warn for exit code 2"}
+    Logger.info("got return code 1 - WARNING")
+    result   = Notifier.run(notifiers, message)
+    {:ok, "sent an alert for exit code 1"}
   end
-  def handle(message=%{"exit_code" => 2, "notifier" => notifier, "notfiy_on_warning" => true}) do
-    # if notify on exit code 2 then alert
-    Logger.info("got return code 2")
-    config   = load_config
-    # TODO break out into notifier handler
-    # TODO stop reading config file everytime
-    result   = exec_notifier(notifier, message, [])
-
-    {:ok, "sent an alert for exit code 2"}
-  end
-
   def handle(result=%{"exit_code" => rc}) do
     Logger.info("got message #{inspect(result)}")
     {:error, "do not know how to handle #{rc} exit status"}
@@ -53,40 +63,5 @@ defmodule WamekuServerScratch.CheckHandler do
   def handle(message) do
     Logger.error("I do not know how to handle msg: #{inspect(message)}")
     {:error, 0}
-  end
-
-  def load_config do
-    config_path = Path.join([@wameku_home, "server", "config", "notifiers.json"])
-    Poison.decode!(File.read!(config_path))
-  end
-
-  def exec_notifier([], _message, acc) when length(acc) == 0 do
-    {:ok, "no need to alert as no notifier was set!"}
-  end
-  def exec_notifier([], _message, acc) do
-    {:ok, "alert sent!", acc}
-  end
-  def exec_notifier([h|t], message, acc) do
-    {client, client_data } = WamekuServerScratch.ClientStore.lookup(message["host"])
-    config = load_config
-    alert  = Map.get(config, to_string(h))
-    Logger.info("notifier config: #{inspect(alert)}")
-    result =
-    if alert && client_data.active do
-      # send to stdin name, exit_code, and output
-      [Porcelain.exec(alert["path"], [build_config_arguments(alert), build_notifier_message(message)])| acc]
-    else
-      Logger.info("Could not find notifier #{h} or client is not active; ignoring")
-      acc
-    end
-    exec_notifier(t, message, result)
-  end
-
-  def build_config_arguments(config) do
-    Poison.encode!(List.first(config["arguments"]))
-  end
-
-  def build_notifier_message(message) do
-      Poison.encode!(%HandlerMessage{name: message["name"], output: message["output"], exit_code: message["exit_code"]})
   end
 end
